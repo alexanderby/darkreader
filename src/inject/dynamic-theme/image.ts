@@ -15,12 +15,82 @@ export interface ImageDetails {
     isLarge: boolean;
 }
 
+const FaviconSelector = "link[rel='icon'], link[rel='shortcut icon']";
+
+function invertFavicon(favicon: HTMLImageElement) {
+    const MAX_ANALIZE_PIXELS_COUNT = 32 * 32;
+
+    const naturalPixelsCount = favicon.naturalWidth * favicon.naturalHeight;
+    const k = Math.min(1, Math.sqrt(MAX_ANALIZE_PIXELS_COUNT / naturalPixelsCount));
+    const width = Math.max(1, Math.round(favicon.naturalWidth * k));
+    const height = Math.max(1, Math.round(favicon.naturalHeight * k));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(favicon, 0, 0);
+    const imgData = ctx.getImageData(0, 0, favicon.width, favicon.height);
+    const data = imgData.data;
+
+    const DARK_LIGHTNESS_THRESHOLD = 0.4;
+    const TRANSPARENT_ALPHA_THRESHOLD = 0.05;
+
+    let i: number, x: number, y: number;
+    let r: number, g: number, b: number, a: number;
+    let p: number;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            i = 4 * (y * width + x);
+            r = data[i + 0] / 255;
+            g = data[i + 1] / 255;
+            b = data[i + 2] / 255;
+            a = data[i + 3] / 255;
+
+            if (a < TRANSPARENT_ALPHA_THRESHOLD) {
+                continue;
+            } else {
+                // Use HSP to determine the `pixel Lightness`
+                // http://alienryderflex.com/hsp.html & https://stackoverflow.com/a/24213274/13569411
+                p = Math.sqrt(0.299 * r^2 + 0.587 * g^2 + 0.114 * b^2)
+                if (p < DARK_LIGHTNESS_THRESHOLD) {
+                    data[i + 0] = 255 - data[i + 0];
+                    data[i + 1] = 255 - data[i + 1];
+                    data[i + 2] = 255 - data[i + 2];
+                }
+            }
+        }
+    }
+
+ 	ctx.putImageData(imgData, 0, 0);
+ 	return canvas.toDataURL();
+}
+
+export async function checkFavicon() {
+    const favicon = document.querySelector(FaviconSelector) as HTMLLinkElement;
+    if (favicon) {
+        const info = await getImageDetails(favicon.href);
+        if (info.isDark) {
+	        const image = new Image();
+	        image.crossOrigin = 'anonymous';
+	        image.onload = function () {
+	 	        favicon.href = invertFavicon(image);
+	        };
+            image.src = favicon.href;
+        }
+    }
+}
+
 export async function getImageDetails(url: string) {
     let dataURL: string;
     if (url.startsWith('data:')) {
         dataURL = url;
     } else {
         dataURL = await getImageDataURL(url);
+    }
+    if (dataURL === 'data:') { // Image URL's that redirect to non image causes to return data:.
+        return null;
     }
     const image = await urlToImage(dataURL);
     const info = analyzeImage(image);
@@ -48,6 +118,7 @@ async function urlToImage(url: string) {
         image.src = url;
     });
 }
+
 
 function analyzeImage(image: HTMLImageElement) {
     const MAX_ANALIZE_PIXELS_COUNT = 32 * 32;
