@@ -2,10 +2,12 @@ import {m} from 'malevic';
 import {getLocalMessage} from '../../../utils/locales';
 import {CheckBox, TimeRangePicker, TextBox, Button} from '../../controls';
 import {ViewProps} from '../types';
+import DropDown from '../../controls/dropdown/index';
 
 export default function AutomationPage(props: ViewProps) {
     const isSystemAutomation = props.data.settings.automation === 'system';
     const locationSettings = props.data.settings.location;
+    const behaviourValues = ['OnOff', 'Scheme'];
     const values = {
         'latitude': {
             min: -90,
@@ -133,6 +135,14 @@ export default function AutomationPage(props: ViewProps) {
             </div>
             <p class="automation-page__description">
                 {getLocalMessage('system_dark_mode_description')}
+            </p>
+            <DropDown
+                onChange={(selected: any) => props.actions.changeSettings({automationBehaviour: selected})}
+                selected={props.data.settings.automationBehaviour}
+                values={behaviourValues}
+            />
+            <p class="automation-page__description">
+                Behaviour if automation is toggled blah blah I'm a developer not a Writer.
             </p>
         </div>
     );
