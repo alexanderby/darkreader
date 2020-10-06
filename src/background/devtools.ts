@@ -1,6 +1,5 @@
 import {parseInversionFixes, formatInversionFixes} from '../generators/css-filter';
 import {parseDynamicThemeFixes, formatDynamicThemeFixes} from '../generators/dynamic-theme';
-import {parseStaticThemes, formatStaticThemes} from '../generators/static-theme';
 import ConfigManager from './config-manager';
 
 interface DevToolsStorage {
@@ -74,13 +73,11 @@ export default class DevTools {
         this.config = config;
         this.config.overrides.dynamicThemeFixes = this.getSavedDynamicThemeFixes() || null;
         this.config.overrides.inversionFixes = this.getSavedInversionFixes() || null;
-        this.config.overrides.staticThemes = this.getSavedStaticThemes() || null;
         this.onChange = onChange;
     }
 
     private static KEY_DYNAMIC = 'dev_dynamic_theme_fixes';
     private static KEY_FILTER = 'dev_inversion_fixes';
-    private static KEY_STATIC = 'dev_static_themes';
 
     private getSavedDynamicThemeFixes() {
         return this.store.get(DevTools.KEY_DYNAMIC) || null;
@@ -151,44 +148,6 @@ export default class DevTools {
             this.config.overrides.inversionFixes = formatted;
             this.config.handleInversionFixes();
             this.saveInversionFixes(formatted);
-            this.onChange();
-            return null;
-        } catch (err) {
-            return err;
-        }
-    }
-
-    private getSavedStaticThemes() {
-        return this.store.get(DevTools.KEY_STATIC) || null;
-    }
-
-    private saveStaticThemes(text: string) {
-        this.store.set(DevTools.KEY_STATIC, text);
-    }
-
-    hasCustomStaticFixes() {
-        return this.store.has(DevTools.KEY_STATIC);
-    }
-
-    getStaticThemesText() {
-        const $themes = this.getSavedStaticThemes();
-        const themes = $themes ? parseStaticThemes($themes) : this.config.STATIC_THEMES;
-        return formatStaticThemes(themes);
-    }
-
-    resetStaticThemes() {
-        this.store.remove(DevTools.KEY_STATIC);
-        this.config.overrides.staticThemes = null;
-        this.config.handleStaticThemes();
-        this.onChange();
-    }
-
-    applyStaticThemes(text: string) {
-        try {
-            const formatted = formatStaticThemes(parseStaticThemes(text));
-            this.config.overrides.staticThemes = formatted;
-            this.config.handleStaticThemes();
-            this.saveStaticThemes(formatted);
             this.onChange();
             return null;
         } catch (err) {

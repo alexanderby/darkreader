@@ -11,12 +11,12 @@ import {isFirefox} from '../utils/platform';
 import {isInTimeInterval, getDuration, isNightAtLocation} from '../utils/time';
 import {isURLInList, getURLHostOrProtocol, isURLEnabled} from '../utils/url';
 import ThemeEngines from '../generators/theme-engines';
-import createCSSFilterStylesheet from '../generators/css-filter';
+import createCSSFilterStyleSheet from '../generators/css-filter';
 import {getDynamicThemeFixesFor} from '../generators/dynamic-theme';
-import createStaticStylesheet from '../generators/static-theme';
 import {createSVGFilterStylesheet, getSVGFilterMatrixValue, getSVGReverseFilterMatrixValue} from '../generators/svg-filter';
 import {ExtensionData, FilterConfig, News, Shortcuts, UserSettings, TabInfo} from '../definitions';
 import {isSystemDarkModeEnabled} from '../utils/media-query';
+import {createStaticStyleSheet, addCSSVariablesToStyleSheet} from '../generators/static-theme';
 
 const AUTO_TIME_CHECK_INTERVAL = getDuration({seconds: 10});
 
@@ -133,8 +133,6 @@ export class Extension {
             resetDevDynamicThemeFixes: () => this.devtools.resetDynamicThemeFixes(),
             applyDevInversionFixes: (text) => this.devtools.applyInversionFixes(text),
             resetDevInversionFixes: () => this.devtools.resetInversionFixes(),
-            applyDevStaticThemes: (text) => this.devtools.applyStaticThemes(text),
-            resetDevStaticThemes: () => this.devtools.resetStaticThemes(),
         };
     }
 
@@ -185,10 +183,8 @@ export class Extension {
             devtools: {
                 dynamicFixesText: this.devtools.getDynamicThemeFixesText(),
                 filterFixesText: this.devtools.getInversionFixesText(),
-                staticThemesText: this.devtools.getStaticThemesText(),
                 hasCustomDynamicFixes: this.devtools.hasCustomDynamicThemeFixes(),
                 hasCustomFilterFixes: this.devtools.hasCustomFilterFixes(),
-                hasCustomStaticFixes: this.devtools.hasCustomStaticFixes(),
             },
         };
     }
@@ -392,7 +388,7 @@ export class Extension {
                 case ThemeEngines.cssFilter: {
                     return {
                         type: 'add-css-filter',
-                        data: createCSSFilterStylesheet(theme, url, frameURL, this.config.INVERSION_FIXES),
+                        data: createCSSFilterStyleSheet(theme, url, frameURL, this.config.INVERSION_FIXES),
                     };
                 }
                 case ThemeEngines.svgFilter: {
@@ -412,11 +408,12 @@ export class Extension {
                     };
                 }
                 case ThemeEngines.staticTheme: {
+                    const css = theme.stylesheet && theme.stylesheet.trim() ?
+                        addCSSVariablesToStyleSheet(theme, theme.stylesheet) :
+                        createStaticStyleSheet(theme, url, this.config.STATIC_THEMES);
                     return {
                         type: 'add-static-theme',
-                        data: theme.stylesheet && theme.stylesheet.trim() ?
-                            theme.stylesheet :
-                            createStaticStylesheet(theme, url, frameURL, this.config.STATIC_THEMES),
+                        data: css,
                     };
                 }
                 case ThemeEngines.dynamicTheme: {

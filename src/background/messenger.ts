@@ -14,8 +14,6 @@ export interface ExtensionAdapter {
     resetDevDynamicThemeFixes: () => void;
     applyDevInversionFixes: (json: string) => Error;
     resetDevInversionFixes: () => void;
-    applyDevStaticThemes: (text: string) => Error;
-    resetDevStaticThemes: () => void;
 }
 
 export default class Messenger {
@@ -90,15 +88,6 @@ export default class Messenger {
             }
             case 'reset-dev-inversion-fixes': {
                 this.adapter.resetDevInversionFixes();
-                break;
-            }
-            case 'apply-dev-static-themes': {
-                const error = this.adapter.applyDevStaticThemes(data);
-                port.postMessage({id, error: error ? error.message : null});
-                break;
-            }
-            case 'reset-dev-static-themes': {
-                this.adapter.resetDevStaticThemes();
                 break;
             }
         }

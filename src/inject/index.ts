@@ -7,7 +7,12 @@ import {collectCSS} from './dynamic-theme/css-collection';
 
 function onMessage({type, data}) {
     switch (type) {
-        case 'add-css-filter':
+        case 'add-css-filter': {
+            const css = data;
+            removeDynamicTheme();
+            createOrUpdateStyle(css);
+            break;
+        }
         case 'add-static-theme': {
             const css = data;
             removeDynamicTheme();
