@@ -5,7 +5,9 @@
         "outDir": "",
         "types": [
             "jest",
-            "node"
+            "node",
+            "chrome",
+            "malevic"
         ]
     }
 }

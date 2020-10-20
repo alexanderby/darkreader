@@ -1,5 +1,7 @@
 import {UserSettings} from '../definitions';
 import {isIPV6, compareIPV6} from './ipv6';
+import {isMobile, isFirefox} from './platform';
+import {getExtensionPageObject} from '../ui/utils';
 
 let anchor: HTMLAnchorElement;
 
@@ -183,4 +185,30 @@ export function isURLEnabled(url: string, userSettings: UserSettings, {isProtect
         return true;
     }
     return (!isInDarkList && !isURLInUserList);
+}
+
+export async function openExtensionPage(path: string) {
+    const cssEditorObject = await getExtensionPageObject(path);
+    if (isMobile()) {
+        if (cssEditorObject) {
+            chrome.tabs.update(cssEditorObject.id, {'active': true});
+            window.close();
+        } else {
+            chrome.tabs.create({
+                url: `../${path}`,
+            });
+            window.close();
+        }
+    } else {
+        if (cssEditorObject) {
+            chrome.windows.update(cssEditorObject.id, {'focused': true});
+        } else {
+            chrome.windows.create({
+                type: 'popup',
+                url: isFirefox() ? `../${path}` : `ui/${path}`,
+                width: 600,
+                height: 600,
+            });
+        }
+    }
 }
