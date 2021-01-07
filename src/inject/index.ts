@@ -4,6 +4,7 @@ import {createOrUpdateDynamicTheme, removeDynamicTheme, cleanDynamicThemeCache} 
 import {logInfo, logWarn} from './utils/log';
 import {watchForColorSchemeChange} from './utils/watch-color-scheme';
 import {collectCSS} from './dynamic-theme/css-collection';
+import {removeFallbackStyle} from './fallback';
 
 function onMessage({type, data}) {
     switch (type) {
@@ -36,6 +37,7 @@ function onMessage({type, data}) {
             removeStyle();
             removeSVGFilter();
             removeDynamicTheme();
+            removeFallbackStyle();
             break;
         }
     }

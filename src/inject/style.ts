@@ -1,4 +1,5 @@
 import {createNodeAsap, removeNode} from './utils/dom';
+import {removeFallbackStyle} from './fallback';
 
 export function createOrUpdateStyle(css: string) {
     createNodeAsap({
@@ -9,6 +10,7 @@ export function createOrUpdateStyle(css: string) {
             style.type = 'text/css';
             style.textContent = css;
             target.appendChild(style);
+            removeFallbackStyle();
         },
         updateNode: (existing) => {
             if (css.replace(/^\s+/gm, '') !== existing.textContent.replace(/^\s+/gm, '')) {

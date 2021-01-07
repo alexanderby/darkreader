@@ -26,3 +26,8 @@ if (
         observer.observe(root, {childList: true});
     }
 }
+
+export function removeFallbackStyle() {
+    const fallbackStyle = document.querySelector('.darkreader--fallback')
+    fallbackStyle && fallbackStyle.parentNode && fallbackStyle.parentNode.removeChild(fallbackStyle);
+}

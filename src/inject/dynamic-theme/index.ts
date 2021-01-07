@@ -453,7 +453,6 @@ function removeProxy() {
 
 export function removeDynamicTheme() {
     cleanDynamicThemeCache();
-    removeNode(document.querySelector('.darkreader--fallback'));
     if (document.head) {
         restoreMetaThemeColor();
         removeNode(document.head.querySelector('.darkreader--user-agent'));
