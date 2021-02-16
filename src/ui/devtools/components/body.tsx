@@ -5,13 +5,56 @@ import ThemeEngines from '../../../generators/theme-engines';
 import {DEVTOOLS_DOCS_URL} from '../../../utils/links';
 import type {ExtWrapper, TabInfo} from '../../../definitions';
 import {getCurrentThemePreset} from '../../popup/theme/utils';
-import {isFirefox} from '../../../utils/platform';
+import {staticThemeCommands} from '../../../generators/static-theme';
+import {inversionFixesCommands} from '../../../generators/css-filter';
+import {dynamicThemeFixesCommands} from '../../../generators/dynamic-theme';
 
 type BodyProps = ExtWrapper & {tab: TabInfo};
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
+declare namespace CodeMirror {
+    function fromTextArea(node: HTMLTextAreaElement, obj: mirrorConfig): mirror;
+    function defineSimpleMode(name: string, configuration: simpleModeConfig): void;
+    function defineMode(name: string, modeFunc: () => any): void;
+    function getMode(config: any, name: string): any;
+    function multiplexingMode(mode: any, info: multiplexingModeConfig): any;
+}
+
+interface mirrorConfig {
+    mode: string;
+    lineNumbers: boolean;
+    lineWrapping: boolean;
+    theme: string;
+    styleActiveLine: boolean;
+    matchBrackets: boolean;
+    autoCloseBrackets: boolean;
+}
+
+interface simpleModeConfig {
+    start: Array<{
+        regex: RegExp;
+        token: string;
+    }>;
+}
+
+interface multiplexingModeConfig {
+    open: string | RegExp;
+    close: string | RegExp;
+    mode: any;
+    delimStyle: string;
+    parseDelimiters?: boolean;
+}
+
+interface mirror {
+    getValue(): string;
+    refresh(): void;
+    setSize(width: string, height: string): void;
+    on(event: string, callback: () => void): void;
+}
+
 function Body({data, tab, actions}: BodyProps) {
     const {state, setState} = useState({errorText: null as string});
-    let textNode: HTMLTextAreaElement;
+    let codeMirror: mirror;
     const previewButtonText = data.settings.previewNewDesign ? 'Switch to old design' : 'Preview new design';
     const {theme} = getCurrentThemePreset({data, tab, actions});
 
@@ -21,46 +64,89 @@ function Body({data, tab, actions}: BodyProps) {
             fixesText: data.devtools.staticThemesText,
             apply: (text) => actions.applyDevStaticThemes(text),
             reset: () => actions.resetDevStaticThemes(),
+            keywords: staticThemeCommands,
         } : theme.engine === ThemeEngines.cssFilter || theme.engine === ThemeEngines.svgFilter ? {
             header: 'Inversion Fix Editor',
             fixesText: data.devtools.filterFixesText,
             apply: (text) => actions.applyDevInversionFixes(text),
             reset: () => actions.resetDevInversionFixes(),
+            keywords: Object.keys(inversionFixesCommands),
         } : {
             header: 'Dynamic Theme Editor',
             fixesText: data.devtools.dynamicFixesText,
             apply: (text) => actions.applyDevDynamicThemeFixes(text),
             reset: () => actions.resetDevDynamicThemeFixes(),
+            keywords: Object.keys(dynamicThemeFixesCommands),
         });
 
-    function onTextRender(node: HTMLTextAreaElement) {
-        textNode = node;
-        if (!state.errorText) {
-            textNode.value = wrapper.fixesText;
-        }
-        node.addEventListener('keydown', (e) => {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const indent = ' '.repeat(4);
-                if (isFirefox) {
-                    // https://bugzilla.mozilla.org/show_bug.cgi?id=1220696
-                    const start = node.selectionStart;
-                    const end = node.selectionEnd;
-                    const before = node.value.substring(0, start);
-                    const after = node.value.substring(end);
-                    node.focus();
-                    node.value = `${before}${indent}${after}`;
-                    const cursorPos = start + indent.length;
-                    node.setSelectionRange(cursorPos, cursorPos);
-                } else {
-                    document.execCommand('insertText', false, indent);
-                }
+    function onchange() {
+        document.querySelectorAll('pre.CodeMirror-line > span[role="presentation"]').forEach(function (element: HTMLElement) {
+            if (wrapper.keywords.includes(element.textContent) && !element.innerHTML.includes('class="cm-atom')) {
+                element.innerHTML = '<span class="cm-atom">' + element.textContent + '</span>';
             }
         });
     }
 
+    function onTextRender(node: HTMLTextAreaElement) {
+        if (!state.errorText) {
+            node.value = wrapper.fixesText;
+        }
+        if (document.querySelectorAll('div.CodeMirror').length === 0) {
+            CodeMirror.defineSimpleMode('mainConfig', {
+                start: [
+                    {
+                        regex: RegExp('^((?!' + wrapper.keywords.join('|') + '|^=).)*$', 'gm'),
+                        token: 'string',
+                    },
+                ],
+            });
+            CodeMirror.defineMode('darkreaderConfig', function () {
+                return CodeMirror.multiplexingMode(
+                    CodeMirror.getMode({}, 'mainConfig'),
+                    {
+                        open: RegExp('(' + wrapper.keywords.join('|') + ')', 'g'),
+                        close: '================================',
+                        mode: CodeMirror.getMode({}, 'css'),
+                        delimStyle: 'delimit',
+                    }
+                );
+            });
+            setTimeout(function () {
+                codeMirror = CodeMirror.fromTextArea(node, {
+                    mode: 'darkreaderConfig',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    theme: 'dracula',
+                    styleActiveLine: true,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                });
+                codeMirror.setSize('90%', '80%');
+                onchange();
+                codeMirror.on('update', onchange);
+            }, 0);
+        } else {
+            setTimeout(function () {
+                codeMirror = CodeMirror.fromTextArea(node, {
+                    mode: 'darkreaderConfig',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    theme: 'dracula',
+                    styleActiveLine: true,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                });
+                document.querySelectorAll('div.CodeMirror')[1].remove();
+                codeMirror.setSize('90%', '80%');
+                onchange();
+                codeMirror.on('update', onchange);
+                codeMirror.refresh();
+            }, 0);
+        }
+    }
+
     async function apply() {
-        const text = textNode.value;
+        const text = codeMirror.getValue();
         try {
             await wrapper.apply(text);
             setState({errorText: null});
@@ -88,12 +174,7 @@ function Body({data, tab, actions}: BodyProps) {
             </header>
             <h3 id="sub-title">{wrapper.header}</h3>
             <textarea
-                id="editor"
                 onrender={onTextRender}
-                spellcheck="false"
-                autocorrect="off"
-                autocomplete="off"
-                autocapitalize="off"
             />
             <label id="error-text">{state.errorText}</label>
             <div id="buttons">

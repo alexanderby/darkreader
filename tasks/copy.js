@@ -5,6 +5,7 @@ const reload = require('./reload');
 const {createTask} = require('./task');
 
 const srcDir = 'src';
+const modulesDir = 'node_modules';
 const cwdPaths = [
     'background/index.html',
     'config/**/*.config',
@@ -13,10 +14,13 @@ const cwdPaths = [
     'ui/popup/compatibility.js',
     'manifest.json',
 ];
-const paths = cwdPaths.map((path) => `${srcDir}/${path}`);
+const dependenciesPaths = [
+    'codemirror/**/*.*'
+];
+const paths = cwdPaths.map((path) => `${srcDir}/${path}`).concat(dependenciesPaths.map((path) => `${modulesDir}/${path}`));
 
 function getCwdPath(/** @type {string} */srcPath) {
-    return srcPath.substring(srcDir.length + 1);
+    return srcPath.split('/').splice(1).join('/');
 }
 
 async function patchManifest({debug, firefox, thunderbird}) {
@@ -34,7 +38,7 @@ async function copyFile(path, {debug, firefox, thunderbird}) {
     if ((firefox || thunderbird) && cwdPath === 'manifest.json') {
         await patchManifest({debug, firefox, thunderbird});
     } else {
-        const src = `${srcDir}/${cwdPath}`;
+        const src = path;
         const dest = `${destDir}/${cwdPath}`;
         await fs.copy(src, dest);
     }
