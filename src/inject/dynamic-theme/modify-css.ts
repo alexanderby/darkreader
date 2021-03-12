@@ -1,5 +1,4 @@
-import type {RGBA} from '../../utils/color';
-import {parse, rgbToHSL, hslToString} from '../../utils/color';
+import {rgbToHSL, hslToString, parse} from '../../utils/color';
 import {clamp} from '../../utils/math';
 import {getMatches} from '../../utils/text';
 import {getAbsoluteURL} from '../../utils/url';
@@ -11,6 +10,7 @@ import type {CSSVariableModifier, VariablesStore} from './variables';
 import {logWarn, logInfo} from '../utils/log';
 import type {FilterConfig, Theme} from '../../definitions';
 import {isFirefox} from '../../utils/platform';
+import type {RGBA} from '../../utils/color';
 
 export type CSSValueModifier = (theme: Theme) => string | Promise<string>;
 
@@ -116,7 +116,7 @@ export function getSelectionColor(theme: Theme) {
         backgroundColorSelection = modifyBackgroundColor({r: 0, g: 96, b: 212}, {...theme, grayscale: 0});
         foregroundColorSelection = modifyForegroundColor({r: 255, g: 255, b: 255}, {...theme, grayscale: 0});
     } else {
-        const rgb = parse(theme.selectionColor);
+        const rgb = parseColorWithCache(theme.selectionColor);
         const hsl = rgbToHSL(rgb);
         backgroundColorSelection = theme.selectionColor;
         if (hsl.l < 0.5) {
@@ -158,7 +158,7 @@ function getModifiedScrollbarStyle(theme: Theme) {
         colorThumbActive = modifyBackgroundColor({r: 96, g: 96, b: 96}, theme);
         colorCorner = modifyBackgroundColor({r: 255, g: 255, b: 255}, theme);
     } else {
-        const rgb = parse(theme.scrollbarColor);
+        const rgb = parseColorWithCache(theme.scrollbarColor);
         const hsl = rgbToHSL(rgb);
         const isLight = hsl.l > 0.5;
         const lighten = (lighter: number) => ({...hsl, l: clamp(hsl.l + lighter, 0, 1)});
@@ -236,8 +236,8 @@ function getColorModifier(prop: string, value: string): string | CSSValueModifie
     if (unparsableColors.has(value.toLowerCase())) {
         return value;
     }
-    try {
-        const rgb = parseColorWithCache(value);
+    const rgb = tryParseColor(value);
+    if (rgb) {
         if (prop.indexOf('background') >= 0) {
             return (filter) => modifyBackgroundColor(rgb, filter);
         }
@@ -246,8 +246,8 @@ function getColorModifier(prop: string, value: string): string | CSSValueModifie
         }
         return (filter) => modifyForegroundColor(rgb, filter);
 
-    } catch (err) {
-        logWarn('Color parse error', err);
+    } else {
+        logWarn('Color parse error', value);
         return null;
     }
 }
