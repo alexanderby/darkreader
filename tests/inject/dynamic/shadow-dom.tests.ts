@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 describe('SHADOW DOM', () => {
-    it('should add static overrides', async () => {
+    it('should add static overrides', () => {
         container.innerHTML = multiline(
             '<div class="shadow-dom-wrapper"></div>',
         );
@@ -32,7 +32,7 @@ describe('SHADOW DOM', () => {
         expect(shadowRoot.firstElementChild.nextElementSibling.classList.contains('darkreader--override')).toBe(true);
     });
 
-    it('should override styles', async () => {
+    it('should override styles', () => {
         container.innerHTML = multiline(
             '<div class="shadow-dom-wrapper"></div>',
         );
@@ -88,7 +88,7 @@ describe('SHADOW DOM', () => {
         expect(getComputedStyle(shadowRoot.querySelector('p')).color).toBe('rgb(255, 26, 26)');
     });
 
-    it('should handle defined custom elements', async () => {
+    it('should handle defined custom elements', () => {
         container.innerHTML = multiline(
             '<custom-element>',
             '</custom-element>',

@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe('COLOR PARSING', () => {
-    it('should modify RGBA', async () => {
+    it('should modify RGBA', () => {
         container.innerHTML = multiline(
             '<style>',
             '    h1 { background: rgb(245, 185, 124); }',
@@ -34,7 +34,7 @@ describe('COLOR PARSING', () => {
         expect(getComputedStyle(container).backgroundColor).toBe('rgba(41, 136, 41, 0.4)');
     });
 
-    it('should modify HSL', async () => {
+    it('should modify HSL', () => {
         container.innerHTML = multiline(
             '<style>',
             '    h1 { background: hsl(270,60%,70%); }',
@@ -49,7 +49,7 @@ describe('COLOR PARSING', () => {
         expect(getComputedStyle(container).backgroundColor).toBe('rgb(72, 29, 114)');
     });
 
-    it('should modify HSLA', async () => {
+    it('should modify HSLA', () => {
         container.innerHTML = multiline(
             '<style>',
             '    h1 { background: hsla(240, 100%, 50%, .7); }',
@@ -64,7 +64,7 @@ describe('COLOR PARSING', () => {
         expect(getComputedStyle(container).backgroundColor).toBe('rgba(0, 0, 204, 0.05)');
     });
 
-    it('should modify knownColors', async () => {
+    it('should modify knownColors', () => {
         container.innerHTML = multiline(
             '<style>',
             '    h1 { background: rebeccapurple; }',

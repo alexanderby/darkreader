@@ -219,7 +219,7 @@ describe('IMAGE ANALYSIS', () => {
         expect(bgImageValue).toBe('none');
     });
 
-    it('should ignore image analysis', async () => {
+    it('should ignore image analysis', () => {
         container.innerHTML = multiline(
             '<style>',
             getSVGImageCSS(images.darkTransparentIcon, 16, 16, 'i'),

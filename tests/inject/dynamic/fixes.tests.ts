@@ -27,7 +27,7 @@ describe('FIXES', () => {
         expect(document.documentElement.getAttribute('data-darkreader-scheme')).toBe('dimmed');
     });
 
-    it('should invert selectors', async () => {
+    it('should invert selectors', () => {
         container.innerHTML = multiline(
             '<div class="logo">Some logo</div>',
         );
@@ -43,7 +43,7 @@ describe('FIXES', () => {
         expect(getComputedStyle(container.querySelector('.logo')).filter).toBe('invert(1) hue-rotate(180deg) contrast(0.9)');
     });
 
-    it('should insert CSS', async () => {
+    it('should insert CSS', () => {
         container.innerHTML = multiline(
             '<p class="text">Some text need to be red</p>',
         );

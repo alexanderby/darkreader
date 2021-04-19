@@ -59,7 +59,7 @@ describe('STYLE ELEMENTS', () => {
         expect(getComputedStyle(container.querySelector('a')).color).toBe('rgb(51, 145, 255)');
     });
 
-    it('should override static style', async () => {
+    it('should override static style', () => {
         container.innerHTML = multiline(
             '<style>',
             '    h1 { background: gray; }',
@@ -102,7 +102,6 @@ describe('STYLE ELEMENTS', () => {
         createOrUpdateDynamicTheme(theme, null, false);
         expect(getComputedStyle(container.querySelector('h1')).color).toBe('rgb(141, 141, 141)');
         expect(getComputedStyle(container.querySelector('h1 strong')).color).toBe('rgb(255, 26, 26)');
-
         const style = document.querySelector('.testcase-style');
         style.nextSibling.remove();
         await timeout(0);
@@ -178,7 +177,6 @@ describe('STYLE ELEMENTS', () => {
         );
         createOrUpdateDynamicTheme(theme, null, false);
         expect(getComputedStyle(document.querySelector('h1 strong')).color).toBe('rgb(255, 26, 26)');
-
         document.querySelector('.testcase-style').textContent = 'h1 strong { color: green; }';
         await timeout(0);
         expect(getComputedStyle(document.querySelector('h1 strong')).color).toBe('rgb(140, 255, 140)');
