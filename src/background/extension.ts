@@ -100,6 +100,7 @@ export class Extension {
         if (isThunderbird) {
             this.tabs.registerMailDisplayScript();
         } else {
+            isFirefox && this.tabs.addCSSListener();
             this.tabs.updateContentScript({runOnProtectedPages: this.user.settings.enableForProtectedPages});
         }
 
