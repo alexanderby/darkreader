@@ -5,6 +5,8 @@ import type {ModifiableCSSDeclaration, ModifiableCSSRule} from './modify-css';
 import {getModifiableCSSDeclaration} from './modify-css';
 import {variablesStore} from './variables';
 import type {CSSVariableModifier} from './variables';
+import {IsItDark} from './is-it-dark';
+import {logInfo} from '../utils/log';
 
 const themeCacheKeys: Array<keyof Theme> = [
     'mode',
@@ -24,6 +26,23 @@ function getThemeKey(theme: Theme) {
 
 const asyncQueue = createAsyncTasksQueue();
 
+
+function shouldIgnoreSelector(selectorText: string, selectors: string[]) {
+    if (!selectorText || selectors.length === 0) {
+        return false;
+    }
+    if (selectors.some((s) => s === '*')) {
+        return true;
+    }
+    const ruleSelectors = selectorText.split(/,\s*/g);
+    for (let i = 0, len = selectors.length; i < len; i++) {
+        if (ruleSelectors.some((s) => s === selectors[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export function createStyleSheetModifier() {
     let renderId = 0;
     const rulesTextCache = new Map<string, string>();
@@ -38,11 +57,13 @@ export function createStyleSheetModifier() {
         force: boolean;
         prepareSheet: () => CSSStyleSheet;
         isAsyncCancelled: () => boolean;
+        onDark: () => void;
+        ignoreDarkSelector: string[];
     }
 
     function modifySheet(options: ModifySheetOptions): void {
         const rules = options.sourceCSSRules;
-        const {theme, ignoreImageAnalysis, force, prepareSheet, isAsyncCancelled} = options;
+        const {theme, ignoreImageAnalysis, force, prepareSheet, isAsyncCancelled, onDark, ignoreDarkSelector} = options;
 
         let rulesChanged = (rulesModCache.size === 0);
         const notFoundCacheKeys = new Set(rulesModCache.keys());
@@ -50,8 +71,37 @@ export function createStyleSheetModifier() {
         const themeChanged = (themeKey !== prevFilterKey);
 
         const modRules: ModifiableCSSRule[] = [];
+        let isDark = false;
+        const upOnStumbleDarkPage = () => {
+            logInfo(`OH NO! The page is detected dark, anyway let's be nice and disable darkreader.`);
+            isDark = true;
+            onDark();
+        };
         iterateCSSRules(rules, (rule) => {
-            const cssText = rule.cssText;
+            if (isDark) {
+                return;
+            }
+            const {cssText, selectorText, style} = rule;
+            if (!shouldIgnoreSelector(selectorText, ignoreDarkSelector)) {
+                const result = IsItDark(variablesStore, selectorText, style);
+                if (typeof result === 'boolean') {
+                    if (result) {
+                        upOnStumbleDarkPage();
+                        return;
+                    }
+                } else if (result instanceof Promise) {
+                    let shouldReturn = false;
+                    result.then((result) => {
+                        if (result) {
+                            upOnStumbleDarkPage();
+                            shouldReturn = true;
+                        }
+                    });
+                    if (shouldReturn) {
+                        return;
+                    }
+                }
+            }
             let textDiffersFromPrev = false;
 
             notFoundCacheKeys.delete(cssText);
@@ -68,7 +118,7 @@ export function createStyleSheetModifier() {
             }
 
             const modDecs: ModifiableCSSDeclaration[] = [];
-            rule.style && iterateCSSDeclarations(rule.style, (property, value) => {
+            style && iterateCSSDeclarations(style, (property, value) => {
                 const mod = getModifiableCSSDeclaration(property, value, rule, variablesStore, ignoreImageAnalysis, isAsyncCancelled);
                 if (mod) {
                     modDecs.push(mod);
@@ -83,6 +133,11 @@ export function createStyleSheetModifier() {
             }
             rulesModCache.set(cssText, modRule);
         });
+
+        if (isDark) {
+            onDark();
+            return;
+        }
 
         notFoundCacheKeys.forEach((key) => {
             rulesTextCache.delete(key);

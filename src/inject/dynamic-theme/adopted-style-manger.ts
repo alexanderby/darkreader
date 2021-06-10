@@ -5,11 +5,11 @@ const adoptedStyleOverrides = new WeakMap<CSSStyleSheet, CSSStyleSheet>();
 const overrideList = new WeakSet<CSSStyleSheet>();
 
 export interface AdoptedStyleSheetManager {
-    render(theme: Theme, ignoreImageAnalysis: string[]): void;
+    render(theme: Theme, ignoreImageAnalysis: string[], ignoreDarkSelector: string[]): void;
     destroy(): void;
 }
 
-export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot): AdoptedStyleSheetManager {
+export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot, {onDarkPage}): AdoptedStyleSheetManager {
 
     let cancelAsyncOperations = false;
 
@@ -43,7 +43,7 @@ export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot): Ad
         node.adoptedStyleSheets = newSheets;
     }
 
-    function render(theme: Theme, ignoreImageAnalysis: string[]) {
+    function render(theme: Theme, ignoreImageAnalysis: string[], ignoreDarkSelector: string[]) {
         node.adoptedStyleSheets.forEach((sheet) => {
             if (overrideList.has(sheet)) {
                 return;
@@ -69,6 +69,8 @@ export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot): Ad
                 ignoreImageAnalysis,
                 force: false,
                 isAsyncCancelled: () => cancelAsyncOperations,
+                onDark: () => onDarkPage(),
+                ignoreDarkSelector
             });
         });
     }

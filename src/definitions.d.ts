@@ -104,7 +104,6 @@ export interface LocationSettings {
 export interface TabInfo {
     url: string;
     isProtected: boolean;
-    isInDarkList: boolean;
 }
 
 export interface Message {
@@ -124,6 +123,7 @@ export interface DynamicThemeFix {
     css: string;
     ignoreInlineStyle: string[];
     ignoreImageAnalysis: string[];
+    ignoreDarkSelector: string[];
 }
 
 export interface InversionFix {
