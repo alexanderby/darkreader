@@ -13,18 +13,19 @@ import {getCSSFilterValue} from '../../generators/css-filter';
 import {modifyBackgroundColor, modifyColor, modifyForegroundColor} from '../../generators/modify-colors';
 import {createTextStyle} from '../../generators/text-style';
 import type {FilterConfig, DynamicThemeFix} from '../../definitions';
-import {generateUID} from '../../utils/uid';
 import type {AdoptedStyleSheetManager} from './adopted-style-manger';
-import {createAdoptedStyleSheetOverride} from './adopted-style-manger';
-import {isFirefox} from '../../utils/platform';
+import {removeFallbackSheet, createAdoptedStyleSheetOverride} from './adopted-style-manger';
+import {isCSSStyleSheetConstructorSupported} from '../../utils/platform';
 import {injectProxy} from './stylesheet-proxy';
 import {parse} from '../../utils/color';
 import {parsedURLCache} from '../../utils/url';
 import {variablesStore} from './variables';
+import {generateUID} from '../../utils/uid';
+import {disconnectContentScript} from '../port';
 
-const INSTANCE_ID = generateUID();
 const styleManagers = new Map<StyleElement, StyleManager>();
 const adoptedStyleManagers = [] as AdoptedStyleSheetManager[];
+const INSTANCEID = generateUID();
 let filter: FilterConfig = null;
 let fixes: DynamicThemeFix = null;
 let isIFrame: boolean = null;
@@ -167,6 +168,7 @@ function cleanFallbackStyle() {
     if (fallback) {
         fallback.textContent = '';
     }
+    removeFallbackSheet();
 }
 
 function createDynamicStyleOverrides() {
@@ -308,7 +310,7 @@ function createThemeAndWatchForUpdates() {
 }
 
 function handleAdoptedStyleSheets(node: ShadowRoot | Document) {
-    if (Array.isArray(node.adoptedStyleSheets)) {
+    if (isCSSStyleSheetConstructorSupported) {
         if (node.adoptedStyleSheets.length > 0) {
             const newManger = createAdoptedStyleSheetOverride(node);
 
@@ -375,14 +377,15 @@ function stopWatchingForUpdates() {
 function createDarkReaderInstanceMarker() {
     const metaElement: HTMLMetaElement = document.createElement('meta');
     metaElement.name = 'darkreader';
-    metaElement.content = INSTANCE_ID;
+    metaElement.content = INSTANCEID;
     document.head.appendChild(metaElement);
 }
 
 function isAnotherDarkReaderInstanceActive() {
     const meta: HTMLMetaElement = document.querySelector('meta[name="darkreader"]');
     if (meta) {
-        if (meta.content !== INSTANCE_ID) {
+        if (meta.content !== INSTANCEID) {
+            disconnectContentScript();
             return true;
         }
         return false;
@@ -390,6 +393,7 @@ function isAnotherDarkReaderInstanceActive() {
         createDarkReaderInstanceMarker();
         return false;
     }
+
 }
 
 export function createOrUpdateDynamicTheme(filterConfig: FilterConfig, dynamicThemeFixes: DynamicThemeFix, iframe: boolean) {
@@ -405,16 +409,18 @@ export function createOrUpdateDynamicTheme(filterConfig: FilterConfig, dynamicTh
     isIFrame = iframe;
     if (document.head) {
         if (isAnotherDarkReaderInstanceActive()) {
+            removeDynamicTheme();
             return;
         }
         document.documentElement.setAttribute('data-darkreader-mode', 'dynamic');
         document.documentElement.setAttribute('data-darkreader-scheme', filter.mode ? 'dark' : 'dimmed');
         createThemeAndWatchForUpdates();
     } else {
-        if (!isFirefox) {
+        if (!isCSSStyleSheetConstructorSupported) {
             const fallbackStyle = createOrUpdateStyle('darkreader--fallback');
             document.documentElement.appendChild(fallbackStyle);
             fallbackStyle.textContent = getModifiedFallbackStyle(filter, {strict: true});
+            removeFallbackSheet();
         }
 
         const headObserver = new MutationObserver(() => {
@@ -465,6 +471,7 @@ export function removeDynamicTheme() {
         manager.destroy();
     });
     adoptedStyleManagers.splice(0);
+    removeFallbackSheet();
 }
 
 export function cleanDynamicThemeCache() {

@@ -25,9 +25,12 @@ interface PortInfo {
     port: chrome.runtime.Port;
 }
 
+const injectedCode = `${(data: string) => {
+    window[Symbol.for('__DARKREADER__')] = data;
+}}`;
+
 export default class TabManager {
     private ports: Map<number, Map<number, PortInfo>>;
-
     constructor({getConnectionMessage, onColorSchemeChange}: TabManagerOptions) {
         this.ports = new Map();
         chrome.runtime.onConnect.addListener((port) => {
@@ -40,7 +43,6 @@ export default class TabManager {
                         port.postMessage(message);
                     }
                 };
-
                 const isPanel = port.sender.tab == null;
                 if (isPanel) {
                     // NOTE: Vivaldi and Opera can show a page in a side panel,
@@ -119,6 +121,55 @@ export default class TabManager {
                     .postMessage({type: 'export-css'});
             }
         });
+    }
+
+    handleXHR({getConnectionMessage}) {
+        const injectData = (req: chrome.webNavigation.WebNavigationParentedCallbackDetails) => {
+            // Execute the Fallback and don't let it wait for the connectionMessage to come back.
+            chrome.tabs.executeScript(req.tabId, {
+                allFrames: true,
+                runAt: 'document_start',
+                matchAboutBlank: true,
+                file: '/inject/fallback.js',
+            }, () => void 0);
+
+            let data: string;
+            const executeScripts = () => {
+                if (!this.ports.has(req.tabId)) {
+                    this.ports.set(req.tabId, new Map());
+                }
+                chrome.tabs.executeScript(req.tabId, {
+                    frameId: req.frameId,
+                    runAt: 'document_start',
+                    matchAboutBlank: true,
+                    code: `(${injectedCode})(${data})`
+                }, () => void 0);
+                chrome.tabs.executeScript(req.tabId, {
+                    allFrames: true,
+                    runAt: 'document_start',
+                    matchAboutBlank: true,
+                    file: '/inject/index.js',
+                }, () => void 0);
+            };
+
+            const message = getConnectionMessage({
+                url: req.url,
+            });
+            if (message instanceof Promise) {
+                message.then((asyncMessage) => {
+                    if (asyncMessage) {
+                        data = JSON.stringify(asyncMessage);
+                    }
+                    executeScripts();
+                });
+            } else if (message) {
+                data = JSON.stringify(message);
+                executeScripts();
+            }
+        };
+
+        // On before Navigating to the tab the script has to be send for execution.
+        chrome.webNavigation.onBeforeNavigate.addListener(injectData);
     }
 
     async updateContentScript(options: {runOnProtectedPages: boolean}) {

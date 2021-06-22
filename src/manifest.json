@@ -40,6 +40,8 @@
         "fontSettings",
         "storage",
         "tabs",
+        "webNavigation",
+        "declarativeContent",
         "<all_urls>"
     ],
     "commands": {

@@ -12,6 +12,7 @@
         "storage",
         "tabs",
         "theme",
+        "webNavigation",
         "<all_urls>"
     ]
 }

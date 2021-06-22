@@ -1,5 +1,7 @@
 import type {Theme} from '../../definitions';
 import {createStyleSheetModifier} from './stylesheet-modifier';
+import {isCSSStyleSheetConstructorSupported} from '../../utils/platform';
+import {forEach} from '../../utils/array';
 
 const adoptedStyleOverrides = new WeakMap<CSSStyleSheet, CSSStyleSheet>();
 const overrideList = new WeakSet<CSSStyleSheet>();
@@ -8,6 +10,19 @@ export interface AdoptedStyleSheetManager {
     render(theme: Theme, ignoreImageAnalysis: string[]): void;
     destroy(): void;
 }
+
+export const removeFallbackSheet = () => requestAnimationFrame(() => {
+    if (isCSSStyleSheetConstructorSupported) {
+        forEach(document.adoptedStyleSheets, (sheet) => {
+            if (sheet.media.mediaText === '__darkreader_fallback__') {
+                const newSheets = [...document.adoptedStyleSheets];
+                const fallBackIndex = document.adoptedStyleSheets.indexOf(sheet);
+                newSheets.splice(fallBackIndex, 1);
+                document.adoptedStyleSheets = newSheets;
+            }
+        });
+    }
+});
 
 export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot): AdoptedStyleSheetManager {
 
@@ -45,6 +60,9 @@ export function createAdoptedStyleSheetOverride(node: Document | ShadowRoot): Ad
 
     function render(theme: Theme, ignoreImageAnalysis: string[]) {
         node.adoptedStyleSheets.forEach((sheet) => {
+            if (sheet.media.mediaText === '__darkreader_fallback__') {
+                return;
+            }
             if (overrideList.has(sheet)) {
                 return;
             }

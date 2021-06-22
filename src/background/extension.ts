@@ -97,6 +97,9 @@ export class Extension {
         this.registerCommands();
 
         this.ready = true;
+        this.tabs.handleXHR({getConnectionMessage: ({url, frameURL}) => {
+            return this.getConnectionMessage(url, frameURL);
+        }});
         if (isThunderbird) {
             this.tabs.registerMailDisplayScript();
         } else {
