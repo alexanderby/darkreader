@@ -15,8 +15,12 @@ import createCSSFilterStylesheet from '../generators/css-filter';
 import {getDynamicThemeFixesFor} from '../generators/dynamic-theme';
 import createStaticStylesheet from '../generators/static-theme';
 import {createSVGFilterStylesheet, getSVGFilterMatrixValue, getSVGReverseFilterMatrixValue} from '../generators/svg-filter';
-import type {ExtensionData, FilterConfig, News, Shortcuts, UserSettings, TabInfo} from '../definitions';
+import type {ExtensionData, FilterConfig, News, Shortcuts, UserSettings, TabInfo, ExternalRequest, ExternalConnection} from '../definitions';
 import {isSystemDarkModeEnabled} from '../utils/media-query';
+import {logInfo, logWarn} from '../inject/utils/log';
+import {DEFAULT_SETTINGS, DEFAULT_THEME} from '../defaults';
+import {getValidatedObject, getPreviousObject} from '../utils/object';
+import {forEach, isArrayEqual} from '../utils/array';
 import {isFirefox, isThunderbird} from '../utils/platform';
 
 const AUTO_TIME_CHECK_INTERVAL = getDuration({seconds: 10});
@@ -95,6 +99,7 @@ export class Extension {
         console.log('loaded', this.user.settings);
 
         this.registerCommands();
+        this.registerExternalConnections();
 
         this.ready = true;
         if (isThunderbird) {
@@ -173,6 +178,134 @@ export class Extension {
                 this.setTheme({engine: next});
             }
         });
+    }
+
+    private copyShadowCopy(setting: Partial<UserSettings>, origin: string) {
+        const newshadowCopy = this.user.settings.shadowCopy.slice();
+        let shadowCopy = newshadowCopy.find(({id}) => id === origin);
+        const index = shadowCopy ? newshadowCopy.indexOf(shadowCopy) : newshadowCopy.length;
+        if (!shadowCopy) {
+            newshadowCopy.push({id: origin, copy: {} as UserSettings, oldSettings: this.user.settings});
+            shadowCopy = newshadowCopy[index];
+        }
+        shadowCopy.copy = {...shadowCopy.copy, ...setting};
+        newshadowCopy[index] = shadowCopy;
+        this.changeSettings({shadowCopy: newshadowCopy});
+    }
+
+    externalRequestsHandler(incomingData: ExternalRequest, origin: string) {
+        const {type, data, isNative} = incomingData;
+        if (type === 'toggle') {
+            logInfo(`Port: ${origin}, toggled dark reader.`);
+            const newSettings: Partial<UserSettings> = {
+                enabled: !this.isEnabled(),
+                automation: '',
+            };
+            this.changeSettings(newSettings);
+        }
+        if (type === 'toggleCurrentSite') {
+            logInfo(`Port: ${origin}, toggled the current site.`);
+            this.toggleCurrentSite();
+        }
+        if (type === 'addSite') {
+            if (!data) {
+                logWarn('No data detected for addSite.');
+                return;
+            }
+            logInfo(`Port: ${origin}, toggled ${data}`);
+            this.toggleURL(data);
+        }
+        if (type === 'changeSettings') {
+            if (!data) {
+                logWarn('No data detected for changeSettings.');
+                return;
+            }
+            logInfo(`Port: ${origin}, made changes to the settings.`);
+            const validatedData = getValidatedObject(data, DEFAULT_SETTINGS);
+            this.copyShadowCopy(validatedData, origin);
+            this.changeSettings(validatedData);
+            logInfo('Saved', this.user.settings);
+        }
+        if (type === 'requestSettings') {
+            if (!data) {
+                logWarn('No data detected for requestSettings.');
+                return;
+            }
+            logInfo(`Port: ${origin}, requested current settings.`);
+            // Potentially add location settings?
+            const sanitizedData = getValidatedObject(this.user.settings, this.user.settings, ['shadowCopy', 'externalConnections']);
+            if (isNative) {
+                chrome.runtime.sendNativeMessage(origin, {type: 'requestSettings-response', data: sanitizedData});
+            } else {
+                chrome.runtime.sendMessage(origin, {type: 'requestSettings-response', data: sanitizedData});
+            }
+        }
+        if (type === 'setTheme') {
+            if (!data) {
+                logWarn('No data detected for setTheme.');
+                return;
+            }
+            logInfo(`Port: ${origin}, made changes to the settings.`);
+            const validatedData = getValidatedObject(data, DEFAULT_THEME);
+            this.copyShadowCopy({theme: validatedData} as UserSettings, origin);
+            this.setTheme(validatedData);
+            logInfo('Saved', this.user.settings.theme);
+        }
+        if (type === 'resetSettings') {
+            const shadowCopy = this.user.settings.shadowCopy.find(({id}) => id === origin);
+            if (!shadowCopy) {
+                logWarn('No data detected to reset settings.');
+                return;
+            }
+            const previousSettings = getPreviousObject(shadowCopy.copy, this.user.settings, shadowCopy.oldSettings);
+            const index = this.user.settings.shadowCopy.indexOf(shadowCopy);
+            const newshadowCopy = this.user.settings.shadowCopy.slice();
+            newshadowCopy.splice(index, 1);
+            previousSettings ? this.changeSettings({...previousSettings, shadowCopy: newshadowCopy}) : this.changeSettings({shadowCopy: newshadowCopy});
+            if (isNative) {
+                this.connectedNativesPorts.delete(origin);
+            }
+            logInfo('Resseted', this.user.settings);
+        }
+    }
+
+    private connectedNativesPorts: Map<string, chrome.runtime.Port> = new Map();
+
+    private connectToNative = (native: string[] | string) => {
+        if (Array.isArray(native)) {
+            forEach(native, this.connectToNative);
+        } else if (!this.connectedNativesPorts.has(native)) {
+            const port = chrome.runtime.connectNative(native);
+            this.connectedNativesPorts.set(native, port);
+            port.onMessage.addListener((incomingData) => this.externalRequestsHandler(incomingData, native));
+            port.onDisconnect.addListener(() => this.externalRequestsHandler({type: 'resetSettings', isNative: true}, native));
+        }
+    };
+
+    private registerExternalConnections() {
+        this.connectToNative(this.user.settings.externalConnections
+            .filter((externalConnection) => externalConnection.isNative)
+            .map((nativeConnection) => nativeConnection.id));
+        chrome.runtime.onConnectExternal.addListener((port) => {
+            if (this.user.settings.enableExternalConnections) {
+                logInfo(`Port ${port.sender.origin} has been connected to dark reader.`);
+                port.onMessage.addListener((incomingData) => this.externalRequestsHandler(incomingData, port.sender.origin));
+                port.onDisconnect.addListener(() => this.externalRequestsHandler({type: 'resetSettings', isNative: false}, port.sender.origin));
+            } else {
+                logWarn(`Port: ${port.sender.origin}, tried to make contact, but the Enable External Connections setting is not enabled and there by blocked.`);
+            }
+        });
+    }
+
+    private cleanNatives(removedValues: ExternalConnection[]) {
+        removedValues.map((entry) => entry.id)
+            .forEach((entry) => {
+                if (!this.connectedNativesPorts.has(entry)) {
+                    return;
+                }
+                this.connectedNativesPorts.get(entry).disconnect();
+                this.connectedNativesPorts.delete(entry);
+            });
     }
 
     private async getShortcuts() {
@@ -286,6 +419,12 @@ export class Extension {
         }
         if (prev.syncSettings !== this.user.settings.syncSettings) {
             this.user.saveSyncSetting(this.user.settings.syncSettings);
+        }
+        if (!isArrayEqual(prev.externalConnections, this.user.settings.externalConnections)) {
+            this.connectToNative(this.user.settings.externalConnections
+                .filter((externalConnection) => externalConnection.isNative)
+                .map((nativeConnection) => nativeConnection.id));
+            this.cleanNatives(prev.externalConnections.filter((entry) => this.user.settings.externalConnections.includes(entry)));
         }
         if (this.isEnabled() && $settings.changeBrowserTheme != null && prev.changeBrowserTheme !== $settings.changeBrowserTheme) {
             if ($settings.changeBrowserTheme) {

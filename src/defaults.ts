@@ -57,4 +57,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
     previewNewDesign: false,
     enableForPDF: true,
     enableForProtectedPages: false,
+    enableExternalConnections: false,
+    shadowCopy: [],
 };
