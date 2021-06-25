@@ -36,6 +36,23 @@ export default class UserStorage {
         });
     }
 
+    private migrateAutomationSettings(settings: UserSettings) {
+        if (!Array.isArray(settings.automation)) {
+            const automationMode = settings.automation as any;
+            if ((settings.automation as any) === '') {
+                settings.automation = {
+                    enabled: false,
+                    mode: automationMode
+                };
+            } else {
+                settings.automation = {
+                    enabled: true,
+                    mode: automationMode
+                };
+            }
+        }
+    }
+
     private async loadSettingsFromStorage() {
         const local = await readLocalStorage(DEFAULT_SETTINGS);
         if (local.syncSettings == null) {
@@ -43,6 +60,7 @@ export default class UserStorage {
         }
         if (!local.syncSettings) {
             this.fillDefaults(local);
+            this.migrateAutomationSettings(local);
             return local;
         }
 
@@ -52,10 +70,13 @@ export default class UserStorage {
             local.syncSettings = false;
             this.set({syncSettings: false});
             this.saveSyncSetting(false);
+            this.fillDefaults(local);
+            this.migrateAutomationSettings(local);
             return local;
         }
 
         const sync = await readSyncStorage(DEFAULT_SETTINGS);
+        this.migrateAutomationSettings(sync);
         this.fillDefaults(sync);
         return sync;
     }
