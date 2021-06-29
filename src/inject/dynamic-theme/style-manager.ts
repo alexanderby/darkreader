@@ -7,6 +7,7 @@ import {logWarn} from '../utils/log';
 import {replaceCSSRelativeURLsWithAbsolute, removeCSSComments, replaceCSSFontFace, getCSSURLValue, cssImportRegex, getCSSBaseBath} from './css-rules';
 import {bgFetch} from './network';
 import {createStyleSheetModifier} from './stylesheet-modifier';
+import {getDuration} from '../../utils/time';
 import {isShadowDomSupported, isSafari, isThunderbird, isChromium} from '../../utils/platform';
 
 declare global {
@@ -465,11 +466,14 @@ export function manageStyle(element: StyleElement, {update, loadingStart, loadin
     };
 }
 
+const timeoutLoadingLink = getDuration({seconds: 5});
+
 async function linkLoading(link: HTMLLinkElement) {
     return new Promise<void>((resolve, reject) => {
         const cleanUp = () => {
             link.removeEventListener('load', onLoad);
             link.removeEventListener('error', onError);
+            clearTimeout(timeoutID);
         };
         const onLoad = () => {
             cleanUp();
@@ -479,6 +483,7 @@ async function linkLoading(link: HTMLLinkElement) {
             cleanUp();
             reject(`Link loading failed ${link.href}`);
         };
+        const timeoutID = setTimeout(onError, timeoutLoadingLink);
         link.addEventListener('load', onLoad);
         link.addEventListener('error', onError);
     });
