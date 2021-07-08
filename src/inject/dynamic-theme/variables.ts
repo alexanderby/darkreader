@@ -248,9 +248,11 @@ export class VariablesStore {
         if (property === 'background' || property === 'background-image' || property === 'box-shadow') {
             return (theme) => {
                 const unknownVars = new Set<string>();
+                let totalVars = 0;
                 const modify = () => replaceCSSVariablesNames(
                     sourceValue,
                     (v) => {
+                        totalVars++;
                         if (this.isVarType(v, VAR_TYPE_BGCOLOR)) {
                             return wrapBgColorVariableName(v);
                         }
@@ -263,7 +265,7 @@ export class VariablesStore {
                     (fallback) => tryModifyBgColor(fallback, theme),
                 );
                 const modified = modify();
-                if (unknownVars.size > 0) {
+                if (unknownVars.size > 0 && totalVars === unknownVars.size) {
                     return new Promise<string>((resolve) => {
                         const firstUnknownVar = unknownVars.values().next().value;
                         const callback = () => {
@@ -653,8 +655,16 @@ function tryModifyTextColor(color: string, theme: Theme) {
 }
 
 function tryModifyBorderColor(color: string, theme: Theme) {
-    const rgb = tryParseColor(color);
-    return rgb ? modifyBorderColor(rgb, theme) : color;
+    if (!color.includes(' ')) {
+        const rgb = tryParseColor(color);
+        return rgb ? modifyBorderColor(rgb, theme) : color;
+    }
+    let borderParts = color.split(/\s(?![^\(|\"]*(\)|\"))/g);
+    borderParts = borderParts.map((part) => {
+        const rgb = tryParseColor(part);
+        return rgb ? modifyBorderColor(rgb, theme) : part;
+    });
+    return borderParts.join(' ');
 }
 
 function insertVarValues(source: string, varValues: Map<string, string>, stack = new Set<string>()) {
