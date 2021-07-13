@@ -57,6 +57,12 @@
         },
         "switchEngine": {
             "description": "__MSG_theme_generation_mode__"
+        },
+        "switchEngineForCurrentSite": {
+            "suggested_key": {
+                "default": "Alt+Shift+S"
+            },
+            "description": "__MSG_theme_generation_mode_current_site__"
         }
     }
 }
