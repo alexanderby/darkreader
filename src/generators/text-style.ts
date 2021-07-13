@@ -18,5 +18,12 @@ export function createTextStyle(config: FilterConfig): string {
 
     lines.push('}');
 
+    if (config.boldTextBrightness) {
+        lines.push('b {');
+        lines.push(`  -webkit-text-stroke: 0.4px !important;`);
+        lines.push(`  text-stroke: 0.4px !important;`);
+        lines.push('}');
+    }
+
     return lines.join('\n');
 }
