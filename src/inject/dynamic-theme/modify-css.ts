@@ -87,9 +87,6 @@ export function getModifiedUserAgentStyle(theme: Theme, isIFrame: boolean, style
     lines.push(`    border-color: ${modifyBorderColor({r: 76, g: 76, b: 76}, theme)};`);
     lines.push(`    color: ${modifyForegroundColor({r: 0, g: 0, b: 0}, theme)};`);
     lines.push('}');
-    lines.push('a {');
-    lines.push(`    color: ${modifyForegroundColor({r: 0, g: 64, b: 255}, theme)};`);
-    lines.push('}');
     lines.push('table {');
     lines.push(`    border-color: ${modifyBorderColor({r: 128, g: 128, b: 128}, theme)};`);
     lines.push('}');
@@ -108,6 +105,7 @@ export function getModifiedUserAgentStyle(theme: Theme, isIFrame: boolean, style
     if (theme.selectionColor) {
         lines.push(getModifiedSelectionStyle(theme));
     }
+    lines.push(getModifiedLinkStyle(theme));
     return lines.join('\n');
 }
 
@@ -202,6 +200,37 @@ export function getModifiedFallbackStyle(filter: FilterConfig, {strict}) {
     lines.push(`    border-color: ${modifyBorderColor({r: 64, g: 64, b: 64}, filter)} !important;`);
     lines.push(`    color: ${modifyForegroundColor({r: 0, g: 0, b: 0}, filter)} !important;`);
     lines.push('}');
+    return lines.join('\n');
+}
+
+function getModifiedLinkStyle(theme: Theme) {
+    const lines: string[] = [];
+    let linkColor: string;
+    let visitedLinkColor: string;
+    const isLinkColorDefined = theme.linkColor !== 'auto';
+    const isVisitedLinkColorDefined = Boolean(theme.visitedLinkColor);
+
+    if (isLinkColorDefined) {
+        const hsl = rgbToHSL(parse(theme.linkColor));
+        linkColor = hslToString(hsl);
+    } else {
+        linkColor = modifyForegroundColor({r: 0, g: 64, b: 255}, theme);
+    }
+    if (isVisitedLinkColorDefined) {
+        const hsl = rgbToHSL(parse(theme.visitedLinkColor));
+        visitedLinkColor = hslToString(hsl);
+    }
+
+    if (linkColor) {
+        lines.push('a {');
+        lines.push(`    color: ${linkColor} ${isLinkColorDefined ? '!important;' : ''}`);
+        lines.push('}');
+    }
+    if (visitedLinkColor) {
+        lines.push('a:visited {');
+        lines.push(`    color: ${visitedLinkColor} !important;`);
+        lines.push('}');
+    }
     return lines.join('\n');
 }
 

@@ -3,6 +3,7 @@ import Brightness from './brightness';
 import Contrast from './contrast';
 import FontPicker from './font-picker';
 import Grayscale from './grayscale';
+import LinkColorEditor from './link';
 import Mode from './mode';
 import ResetButton from './reset-button';
 import Scheme from './scheme';
@@ -13,6 +14,7 @@ import StyleSystemControls from './style-system-controls';
 import TextColor from './text-color';
 import TextStroke from './text-stroke';
 import UseFont from './use-font';
+import VisitedLinkColorEditor from './visited-link';
 
 export {
     BackgroundColor,
@@ -20,6 +22,7 @@ export {
     Contrast,
     FontPicker,
     Grayscale,
+    LinkColorEditor,
     Mode,
     ResetButton,
     Scheme,
@@ -30,4 +33,5 @@ export {
     TextColor,
     TextStroke,
     UseFont,
+    VisitedLinkColorEditor,
 };

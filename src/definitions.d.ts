@@ -54,6 +54,8 @@ export interface Theme {
     lightSchemeTextColor: string;
     scrollbarColor: '' | 'auto' | string;
     selectionColor: '' | 'auto' | string;
+    linkColor: 'auto' | string;
+    visitedLinkColor: '' | string;
     styleSystemControls: boolean;
 }
 

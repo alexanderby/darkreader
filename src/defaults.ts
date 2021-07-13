@@ -30,6 +30,8 @@ export const DEFAULT_THEME: Theme = {
     lightSchemeTextColor: DEFAULT_COLORS.lightScheme.text,
     scrollbarColor: isMacOS ? '' : 'auto',
     selectionColor: 'auto',
+    linkColor: 'auto',
+    visitedLinkColor: '',
     styleSystemControls: true,
 };
 
