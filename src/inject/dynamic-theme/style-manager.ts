@@ -345,6 +345,25 @@ export function manageStyle(element: StyleElement, {update, loadingStart, loadin
         buildOverrides();
     }
 
+    // A tricky workaround for styles that will error a cross-orgin error.
+    // But does contain textContent(the CSS we need).
+    // By copying into a tempStyle we can retrieve the CSSRuleList, without erroring.
+    function getInnerTextRules(orginialError: Error): [CSSRuleList, Error] {
+        if (!element.textContent) {
+            return [null, orginialError];
+        }
+        const tempStyle = document.createElement('style');
+        try {
+            tempStyle.textContent = element.textContent;
+            document.head.appendChild(tempStyle);
+            return [tempStyle.sheet.cssRules, null];
+        } catch (err) {
+            return [null, err];
+        } finally {
+            document.head.removeChild(tempStyle);
+        }
+    }
+
     function getRulesOrError(): [CSSRuleList, Error] {
         try {
             if (element.sheet == null) {
@@ -352,7 +371,7 @@ export function manageStyle(element: StyleElement, {update, loadingStart, loadin
             }
             return [element.sheet.cssRules, null];
         } catch (err) {
-            return [null, err];
+            return getInnerTextRules(err);
         }
     }
 
