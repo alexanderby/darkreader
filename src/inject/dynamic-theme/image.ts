@@ -2,7 +2,7 @@ import {getSVGFilterMatrixValue} from '../../generators/svg-filter';
 import {bgFetch} from './network';
 import {loadAsDataURL} from '../../utils/network';
 import type {FilterConfig} from '../../definitions';
-import {logWarn} from '../utils/log';
+import {logInfo, logWarn} from '../utils/log';
 
 export interface ImageDetails {
     src: string;
@@ -78,6 +78,23 @@ function analyzeImage(image: HTMLImageElement) {
         logWarn(`logWarn(Image is empty ${image.currentSrc})`);
         return null;
     }
+
+    // Get good appromized image size in memory terms.
+    // Width * Height * 4(R, G, B, A) and 1.33 because rgba can contain up to 3 digits.
+    const size = naturalWidth * naturalHeight * 4 * 1.33;
+    // Is it over ~5MB? Let's not decode the image, it's something that's useless to analyze.
+    // And very performance senstive for the browser to decode this image(~50ms) and take into account
+    // It's being async `drawImage` calls.
+    if (size > 5000000) {
+        logInfo('Skipped large image analyzing(Larger than 5mb in memory)');
+        return {
+            isDark: false,
+            isLight: false,
+            isTransparent: false,
+            isLarge: true,
+        };
+    }
+
     const naturalPixelsCount = naturalWidth * naturalHeight;
     const k = Math.min(1, Math.sqrt(MAX_ANALIZE_PIXELS_COUNT / naturalPixelsCount));
     const width = Math.ceil(naturalWidth * k);
